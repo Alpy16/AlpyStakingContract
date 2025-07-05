@@ -1,51 +1,49 @@
 # AlpyStaking
 
-A minimal ERC20 staking contract written in Solidity. Users can stake a token to earn rewards over time, and withdraw both their stake and accumulated rewards.
+A minimal ERC20 staking contract written in Solidity. Users can stake a token to earn rewards over time and withdraw both their stake and accumulated rewards.
 
 ---
 
-## 📄 Overview
+## Overview
 
-This repo contains a gas-efficient, time-based staking system written in Solidity 0.8.19+. It supports:
+This repository contains a simple and gas-efficient staking system using ERC20 tokens. The design follows a linear reward distribution model and tracks user rewards in a scalable way.
 
-- **Custom ERC20 staking/reward tokens**
-- **Linear reward distribution per second**
-- **Partial or full staking/unstaking**
-- **Accurate per-user reward tracking**
-- **Onchain tests with Foundry**
+Key features:
 
-The reward logic is implemented using a global `rewardPerTokenStored` mechanism for scalability, without storing per-second history.
+- Custom ERC20 staking and reward tokens
+- Constant reward distribution per second
+- Accurate per-user reward tracking
+- Partial stake and unstake support
+- Fully tested with Foundry
 
----
-
-## 🔍 Contract Explanation
-
-### Core Components
-
-- `stakeTokens(uint256 amount)`: Stakes the given amount of tokens. Updates user reward accounting.
-- `withdrawStakedTokens(uint256 amount)`: Unstakes the given amount. Also updates rewards.
-- `withdrawEarnedRewards(uint256 amount)`: Transfers accumulated reward tokens to user.
-- `userRewards(address user)`: Returns claimable rewards for a user.
-- `totalStaked()`: Returns the total amount of staked tokens in the contract.
-
-### Reward Mechanism
-
-- The contract distributes rewards at a constant `rewardRate` per second.
-- When any action occurs (stake/unstake/claim), it updates the user's pending rewards based on elapsed time.
-- This avoids reward dilution and prevents users from gaming the system.
+The reward logic uses a `rewardPerTokenStored` model, which ensures scalability even with many users.
 
 ---
 
-## 🔨 Usage (Local Anvil Setup)
+## How the Contract Works
 
-To deploy and test this contract locally with Anvil:
+The contract distributes reward tokens proportionally to each user’s stake over time. It avoids iterating over all users by using a global reward-per-token tracker that updates only during staking, unstaking, or reward withdrawals.
 
-### 1. Start Anvil
+### Functions
+
+- `stakeTokens(uint256 amount)`: Stakes tokens and updates reward tracking for the user.
+- `withdrawStakedTokens(uint256 amount)`: Unstakes tokens and updates the user's reward.
+- `withdrawEarnedRewards(uint256 amount)`: Transfers earned rewards to the user.
+- `userRewards(address user)`: Returns the amount of unclaimed rewards.
+- `totalStaked()`: Returns total staked tokens across all users.
+
+---
+
+## Local Testing with Anvil
+
+### 1. Start Anvil locally
+
 ```bash
 anvil
 ```
 
-### 2. Deploy the Contract
+### 2. Deploy to Anvil
+
 ```bash
 forge script script/DeployStaking.s.sol:DeployStaking \
   --fork-url http://localhost:8545 \
@@ -53,49 +51,61 @@ forge script script/DeployStaking.s.sol:DeployStaking \
   --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
 ```
 
-### 3. Check Deployed Contract
-Replace the address with the one emitted during deployment:
+This will deploy:
+
+- The staking token
+- The reward token
+- The staking contract
+
+Contract addresses will be printed in the logs.
+
+### 3. Interact with the deployed contract
+
+You can use `cast` to call public view functions:
+
 ```bash
 cast call <staking_contract_address> "totalStaked()(uint256)" \
   --rpc-url http://localhost:8545
 ```
 
+Replace `<staking_contract_address>` with the deployed address shown in the logs.
+
 ---
 
-## ✅ Run Tests
+## Running Tests
 
-Tests are written in Foundry. Includes both basic and edge cases:
+Run the Foundry test suite using:
 
 ```bash
 forge test -vvvv
 ```
 
-Includes:
+Covers:
 
-- Staking/unstaking
-- Reward accrual over time
-- Zero/invalid amounts
-- Multiple users interacting concurrently
+- Basic staking and unstaking
+- Reward accrual logic
+- Edge cases (zero stake, overwithdrawal, no rewards, etc.)
+- Multi-user reward fairness
 
 ---
 
-## 🗂️ Structure
+## Project Structure
 
 ```
 AlpyStaking/
 ├── src/
-│   ├── Staking.sol
-│   └── test_Staking.sol
+│   ├── Staking.sol              ← Main staking logic
+│   └── test_Staking.sol         ← Full test suite
+├── test/
+│   └── AlpyStakingTest.sol      ← Basic test with real token
 ├── lib/
-│   └── AlpyToken (ERC20)
+│   └── AlpyToken/               ← ERC20 token implementation
 ├── script/
-│   └── DeployStaking.s.sol
-└── test/
-    └── AlpyStakingTest.sol
+│   └── DeployStaking.s.sol      ← Script for local deployment
 ```
 
 ---
 
-## 📜 License
+## License
 
-This project is licensed under the MIT License.
+MIT
