@@ -1,159 +1,101 @@
 # AlpyStaking
 
-A minimalist on-chain staking system where users deposit ERC20 tokens to earn time-based rewards. Built using Solidity, Foundry, and tested thoroughly. Includes mintable token contracts, a dynamic reward model, and clean deployment scripts.
+A minimal ERC20 staking contract written in Solidity. Users can stake a token to earn rewards over time, and withdraw both their stake and accumulated rewards.
 
 ---
 
-## 🔍 How It Works
+## 📄 Overview
 
-### 🧱 Core Concepts
+This repo contains a gas-efficient, time-based staking system written in Solidity 0.8.19+. It supports:
 
-- **Stake and Earn:** Users deposit (stake) `stakingToken` to the contract.
-- **Reward Per Second:** A fixed emission rate (`rewardRatePerSecond`) defines how many `rewardToken` are distributed per second, proportionally to each user's stake.
-- **Time-Based Accounting:** Rewards accumulate over time, and are lazily updated during actions (`stake`, `withdraw`, `claim`).
-- **No Lockups:** Users can withdraw their stake or claim rewards at any time.
-- **Mintable ERC20s:** Both tokens are simple mock tokens for local testing — fully mintable by anyone.
+- **Custom ERC20 staking/reward tokens**
+- **Linear reward distribution per second**
+- **Partial or full staking/unstaking**
+- **Accurate per-user reward tracking**
+- **Onchain tests with Foundry**
 
----
-
-## 🧠 Reward Calculation
-
-Each staker earns rewards based on the formula:
-
-```
-rewards = (userStake / totalStaked) * rewardRate * timeElapsed
-```
-
-To avoid recomputing for everyone on every block:
-- The contract stores `lastUpdate` timestamp.
-- Each user has a `userRewards` balance and `userRewardPerTokenPaid` checkpoint.
-- When users interact (stake, withdraw, claim), their rewards are updated with minimal gas cost.
+The reward logic is implemented using a global `rewardPerTokenStored` mechanism for scalability, without storing per-second history.
 
 ---
 
-## 🔐 Security Notes
+## 🔍 Contract Explanation
 
-- This is **not production-hardened**. It’s educational.
-- No reentrancy guards, pausability, or role-based access control are implemented.
-- Meant to be run in dev environments like Anvil or testnets.
+### Core Components
 
----
+- `stakeTokens(uint256 amount)`: Stakes the given amount of tokens. Updates user reward accounting.
+- `withdrawStakedTokens(uint256 amount)`: Unstakes the given amount. Also updates rewards.
+- `withdrawEarnedRewards(uint256 amount)`: Transfers accumulated reward tokens to user.
+- `userRewards(address user)`: Returns claimable rewards for a user.
+- `totalStaked()`: Returns the total amount of staked tokens in the contract.
 
-## 📦 Project Structure
+### Reward Mechanism
 
-- `src/AlpyToken.sol` – ERC20 token with mint.
-- `src/AlypStaking.sol` – Main staking logic.
-- `script/DeployStaking.s.sol` – Deploys staking and tokens.
-- `test/AlpyStakingTest.sol` & `test/test_Staking.sol` – Extensive test coverage, edge-case aware.
-- `lib/` – Dependencies managed by Foundry (e.g. OpenZeppelin, forge-std).
-
----
-
-## 🚀 Usage
-
-### 1. Install Dependencies
-
-```bash
-forge install
-```
-
-### 2. Compile Contracts
-
-```bash
-forge build
-```
-
-### 3. Run All Tests
-
-```bash
-forge test -vvv
-```
+- The contract distributes rewards at a constant `rewardRate` per second.
+- When any action occurs (stake/unstake/claim), it updates the user's pending rewards based on elapsed time.
+- This avoids reward dilution and prevents users from gaming the system.
 
 ---
 
-## 🧪 Anvil Testing Walkthrough
+## 🔨 Usage (Local Anvil Setup)
 
-### Step 1: Start a Local Node
+To deploy and test this contract locally with Anvil:
 
+### 1. Start Anvil
 ```bash
 anvil
 ```
 
-Keep note of the first private key and address it prints. You'll use these below.
-
-### Step 2: Deploy Contracts
-
+### 2. Deploy the Contract
 ```bash
 forge script script/DeployStaking.s.sol:DeployStaking \
   --fork-url http://localhost:8545 \
   --broadcast \
-  --private-key <PRIVATE_KEY>
+  --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
 ```
 
-You’ll see logs with deployed contract addresses.
-
-### Step 3: Interact Manually
-
-#### ✅ Check Total Staked
-
+### 3. Check Deployed Contract
+Replace the address with the one emitted during deployment:
 ```bash
 cast call <staking_contract_address> "totalStaked()(uint256)" \
   --rpc-url http://localhost:8545
 ```
 
-#### 💸 Mint Tokens
+---
+
+## ✅ Run Tests
+
+Tests are written in Foundry. Includes both basic and edge cases:
 
 ```bash
-cast send <staking_token_address> "mint(address,uint256)" <your_address> 1000000000000000000 \
-  --private-key <PRIVATE_KEY> --rpc-url http://localhost:8545
+forge test -vvvv
 ```
 
-#### 🧾 Approve the Staking Contract
+Includes:
 
-```bash
-cast send <staking_token_address> "approve(address,uint256)" <staking_contract_address> 1000000000000000000 \
-  --private-key <PRIVATE_KEY> --rpc-url http://localhost:8545
+- Staking/unstaking
+- Reward accrual over time
+- Zero/invalid amounts
+- Multiple users interacting concurrently
+
+---
+
+## 🗂️ Structure
+
 ```
-
-#### 📥 Stake Tokens
-
-```bash
-cast send <staking_contract_address> "stakeTokens(uint256)" 1000000000000000000 \
-  --private-key <PRIVATE_KEY> --rpc-url http://localhost:8545
-```
-
-#### ⏱ Warp Time (Simulate Time Passing)
-
-```bash
-cast rpc evm_increaseTime 100
-cast rpc evm_mine
-```
-
-#### 🎁 Claim Rewards
-
-```bash
-cast send <staking_contract_address> "withdrawEarnedRewards(uint256)" 10000000000000000 \
-  --private-key <PRIVATE_KEY> --rpc-url http://localhost:8545
-```
-
-#### 📊 Check User Rewards
-
-```bash
-cast call <staking_contract_address> "userRewards(address)(uint256)" <your_address> \
-  --rpc-url http://localhost:8545
+AlpyStaking/
+├── src/
+│   ├── Staking.sol
+│   └── test_Staking.sol
+├── lib/
+│   └── AlpyToken (ERC20)
+├── script/
+│   └── DeployStaking.s.sol
+└── test/
+    └── AlpyStakingTest.sol
 ```
 
 ---
 
-## 🧪 Example Test Scenarios
+## 📜 License
 
-- Stake 100 tokens, simulate 10 seconds, claim 10 rewards.
-- Stake by two users with time offsets to verify proportional accrual.
-- Attempt invalid withdrawals (e.g. zero stake, overclaim).
-- Time-based reward edge cases validated with Foundry's `warp`.
-
----
-
-## 🧾 License
-
-MIT
+This project is licensed under the MIT License.
